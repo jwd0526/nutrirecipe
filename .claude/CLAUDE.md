@@ -4,17 +4,17 @@
 - [x] Repo init + git hooks
 - [x] DB + migrations
 - [x] Go module + models
-- [ ] Config
-- [ ] DB connection
-- [ ] USDA service
-- [ ] Agent service (mock)
-- [ ] Handlers
-- [ ] Main + routes
-- [ ] Vite init
-- [ ] API wrappers
-- [ ] Components
-- [ ] Pages
-- [ ] Vite proxy config
+- [x] Config
+- [x] DB connection
+- [x] USDA service
+- [x] Agent service (mock)
+- [x] Handlers
+- [x] Main + routes
+- [x] Vite init
+- [x] API wrappers
+- [x] Components
+- [x] Pages
+- [x] Vite proxy config
 
 ---
 
