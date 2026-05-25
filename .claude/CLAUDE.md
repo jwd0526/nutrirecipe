@@ -2,7 +2,7 @@
 
 ## Current State
 - [x] Repo init + git hooks
-- [ ] DB + migrations
+- [x] DB + migrations
 - [ ] Go module + models
 - [ ] Config
 - [ ] DB connection
