@@ -22,3 +22,7 @@ frontend/.env
 # IDE
 .idea/
 .vscode/
+
+
+# package refs
+database/
