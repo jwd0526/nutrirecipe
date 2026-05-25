@@ -1,115 +1,153 @@
 package services
 
 import (
-	"strconv"
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"regexp"
 	"strings"
+	"time"
 
 	"github.com/jwd0526/nutrirecipe/models"
 )
 
-type AgentService struct{}
-
-func NewAgentService() *AgentService {
-	return &AgentService{}
+type AgentService struct {
+	ollamaURL string
+	model     string
+	client    *http.Client
 }
 
-// Parse implements Agent 1: clarify ambiguous syrup, else resolve with placeholders.
-func (a *AgentService) Parse(req models.AgentParseRequest) models.AgentParseResponse {
-	if containsSyrupWithoutQualifier(req.Input) {
-		return models.AgentParseResponse{
-			Status: "needs_clarification",
-			Questions: []models.ClarificationQ{
-				{
-					ID:            "syrup_type",
-					IngredientRaw: "syrup",
-					Question:      "What type of syrup?",
-					Options:       []string{"maple syrup", "corn syrup", "agave syrup", "simple syrup"},
-				},
-			},
+func NewAgentService(ollamaURL, model string) *AgentService {
+	return &AgentService{
+		ollamaURL: ollamaURL,
+		model:     model,
+		client:    &http.Client{Timeout: 60 * time.Second},
+	}
+}
+
+const systemPrompt = `You are a recipe ingredient parser. Parse the given ingredient list and respond with ONLY valid JSON.
+
+If all ingredients are clear, respond:
+{
+  "status": "resolved",
+  "ingredients": [
+    {
+      "name": "chicken breast",
+      "portion": 1,
+      "unit": "cup",
+      "quantity_g": 140,
+      "search_queries": {"primary": "cooked chicken breast", "alternatives": ["chicken breast cooked"]},
+      "confidence": "high"
+    }
+  ]
+}
+
+If any ingredient type is ambiguous (e.g. "oil", "flour", or "syrup" with no qualifier), respond:
+{
+  "status": "needs_clarification",
+  "questions": [
+    {
+      "id": "q1",
+      "ingredient_raw": "syrup",
+      "question": "What type of syrup?",
+      "options": ["maple syrup", "corn syrup", "agave syrup", "simple syrup"]
+    }
+  ]
+}
+
+Gram conversion reference: 1 cup liquid=240g, 1 cup flour=120g, 1 cup cooked rice=195g, 1 cup cooked chicken=140g, 1 tbsp=15g, 1 tsp=5g, 1 oz=28g.
+The "primary" search query must be a plain ingredient name suitable for the USDA food database (no quantities or units).
+Output nothing outside the JSON.`
+
+type ollamaRequest struct {
+	Model    string          `json:"model"`
+	Messages []ollamaMessage `json:"messages"`
+	Stream   bool            `json:"stream"`
+	Format   string          `json:"format"`
+}
+
+type ollamaMessage struct {
+	Role    string `json:"role"`
+	Content string `json:"content"`
+}
+
+type ollamaResponse struct {
+	Message ollamaMessage `json:"message"`
+}
+
+func (a *AgentService) Parse(req models.AgentParseRequest) (models.AgentParseResponse, error) {
+	userContent := req.Input
+	if len(req.QAHistory) > 0 {
+		var sb strings.Builder
+		sb.WriteString(req.Input)
+		sb.WriteString("\n\nClarifications provided:\n")
+		for _, qa := range req.QAHistory {
+			fmt.Fprintf(&sb, "Q: %s\nA: %s\n", qa.Question, qa.Answer)
 		}
-	}
-	return models.AgentParseResponse{
-		Status:      "resolved",
-		Ingredients: parsePlaceholders(req.Input),
-	}
-}
-
-func containsSyrupWithoutQualifier(input string) bool {
-	lower := strings.ToLower(input)
-	if !strings.Contains(lower, "syrup") {
-		return false
-	}
-	qualifiers := []string{"maple", "corn", "agave", "simple", "golden", "rice"}
-	for _, q := range qualifiers {
-		if strings.Contains(lower, q+" syrup") {
-			return false
-		}
-	}
-	return true
-}
-
-var knownUnits = map[string]bool{
-	"cup": true, "cups": true, "tbsp": true, "tsp": true,
-	"tablespoon": true, "tablespoons": true, "teaspoon": true, "teaspoons": true,
-	"g": true, "gram": true, "grams": true, "oz": true, "ounce": true, "ounces": true,
-	"lb": true, "lbs": true, "pound": true, "pounds": true,
-	"ml": true, "l": true, "liter": true, "liters": true,
-	"piece": true, "pieces": true, "slice": true, "slices": true,
-	"clove": true, "cloves": true, "whole": true,
-}
-
-func parsePlaceholders(input string) []models.ParsedIngredient {
-	lines := strings.Split(strings.TrimSpace(input), "\n")
-	out := make([]models.ParsedIngredient, 0, len(lines))
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-		out = append(out, parseIngredientLine(line))
-	}
-	return out
-}
-
-func parseIngredientLine(line string) models.ParsedIngredient {
-	words := strings.Fields(line)
-	portion := 1.0
-	unit := "serving"
-	nameStart := 0
-
-	if len(words) > 0 {
-		if n, err := strconv.ParseFloat(words[0], 64); err == nil {
-			portion = n
-			nameStart = 1
-			if len(words) > 1 && knownUnits[strings.ToLower(words[1])] {
-				unit = strings.ToLower(words[1])
-				nameStart = 2
-			}
-		}
+		userContent = sb.String()
 	}
 
-	name := strings.Join(words[nameStart:], " ")
-	if name == "" {
-		name = line
-	}
-	return models.ParsedIngredient{
-		Name:      name,
-		Portion:   portion,
-		Unit:      unit,
-		QuantityG: 100,
-		SearchQueries: models.SearchQueries{
-			Primary:      name,
-			Alternatives: []string{},
+	payload, err := json.Marshal(ollamaRequest{
+		Model: a.model,
+		Messages: []ollamaMessage{
+			{Role: "system", Content: systemPrompt},
+			{Role: "user", Content: userContent},
 		},
-		Confidence: "high",
+		Stream: false,
+		Format: "json",
+	})
+	if err != nil {
+		return models.AgentParseResponse{}, fmt.Errorf("marshal: %w", err)
 	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, a.ollamaURL+"/api/chat", bytes.NewReader(payload))
+	if err != nil {
+		return models.AgentParseResponse{}, fmt.Errorf("build request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := a.client.Do(httpReq)
+	if err != nil {
+		return models.AgentParseResponse{}, fmt.Errorf("ollama request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var olResp ollamaResponse
+	if err := json.NewDecoder(resp.Body).Decode(&olResp); err != nil {
+		return models.AgentParseResponse{}, fmt.Errorf("decode response: %w", err)
+	}
+
+	content := extractJSON(olResp.Message.Content)
+	var result models.AgentParseResponse
+	if err := json.Unmarshal([]byte(content), &result); err != nil {
+		return models.AgentParseResponse{}, fmt.Errorf("parse agent JSON: %w", err)
+	}
+	return result, nil
 }
 
-// evalMatch implements Agent 2: < 2 shared words → low_confidence.
+var jsonBlockRe = regexp.MustCompile("(?s)```(?:json)?\\s*(\\{.*?\\})\\s*```")
+
+func extractJSON(s string) string {
+	if m := jsonBlockRe.FindStringSubmatch(s); len(m) > 1 {
+		return m[1]
+	}
+	start := strings.Index(s, "{")
+	end := strings.LastIndex(s, "}")
+	if start >= 0 && end > start {
+		return s[start : end+1]
+	}
+	return s
+}
+
+// evalMatch is used by usda.go: < 2 shared words → low_confidence.
 func evalMatch(query, result string) string {
 	queryWords := strings.Fields(strings.ToLower(query))
 	resultWords := strings.Fields(strings.ToLower(result))
-
 	shared := 0
 	for _, qw := range queryWords {
 		for _, rw := range resultWords {
