@@ -74,7 +74,7 @@ function IngredientRow({ ing, expanded, onToggle, onPatch }: RowProps) {
       <tr style={{ borderBottom: '1px solid #eee' }}>
         <td style={{ padding: '0.5rem' }}>
           <button type="button" onClick={onToggle} style={{ background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
-            {ing.fdc_name || ing.name}
+            {ing.name}
           </button>
         </td>
         <td style={{ padding: '0.5rem' }}>
