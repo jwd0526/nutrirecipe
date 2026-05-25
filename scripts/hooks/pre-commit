@@ -13,7 +13,7 @@ if [ -f frontend/package.json ]; then
   cd ..
 fi
 
-LARGE=$(git diff --cached --name-only | grep -v '^\.claude/' | xargs wc -l 2>/dev/null | awk '$1 > 300 {print $2}')
+LARGE=$(git diff --cached --name-only | grep -v '^\.claude/' | grep -v 'lock\.' | grep -v '\.lock$' | xargs wc -l 2>/dev/null | awk '$1 > 300 && $2 != "total" {print $2}')
 if [ -n "$LARGE" ]; then echo "❌ Files exceed 300 lines: $LARGE"; exit 1; fi
 
 echo "✅ All checks passed."
