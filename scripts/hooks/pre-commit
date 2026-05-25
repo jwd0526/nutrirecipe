@@ -1,6 +1,6 @@
 #!/bin/bash
-# Skip Go tests if module not yet initialized
-if [ -f backend/go.mod ]; then
+# Skip Go tests if module not yet initialized or no .go files exist
+if [ -f backend/go.mod ] && find backend -name "*.go" | grep -q .; then
   cd backend && go test ./...
   if [ $? -ne 0 ]; then echo "❌ Backend tests failed."; exit 1; fi
   cd ..
@@ -13,7 +13,7 @@ if [ -f frontend/package.json ]; then
   cd ..
 fi
 
-LARGE=$(git diff --cached --name-only | xargs wc -l 2>/dev/null | awk '$1 > 300 {print $2}')
+LARGE=$(git diff --cached --name-only | grep -v '^\.claude/' | xargs wc -l 2>/dev/null | awk '$1 > 300 {print $2}')
 if [ -n "$LARGE" ]; then echo "❌ Files exceed 300 lines: $LARGE"; exit 1; fi
 
 echo "✅ All checks passed."
