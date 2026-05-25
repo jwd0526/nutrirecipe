@@ -1,0 +1,23 @@
+#!/bin/bash
+MSG=$(cat "$1")
+
+# Block co-authored-by
+if echo "$MSG" | grep -qi "co-authored-by"; then
+  echo "❌ Co-authored-by not allowed in commit messages."
+  exit 1
+fi
+
+# Enforce conventional commits
+PATTERN="^(feat|fix|chore|test)\(.+\): .+"
+if ! echo "$MSG" | grep -qE "$PATTERN"; then
+  echo "❌ Commit message must match: type(scope): description"
+  exit 1
+fi
+
+# Enforce 15-word limit on description
+DESC=$(echo "$MSG" | head -1 | sed 's/^[^:]*: //')
+WORDS=$(echo "$DESC" | wc -w)
+if [ "$WORDS" -gt 15 ]; then
+  echo "❌ Commit description exceeds 15 words ($WORDS)."
+  exit 1
+fi

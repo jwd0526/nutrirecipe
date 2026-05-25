@@ -1,0 +1,19 @@
+#!/bin/bash
+# Skip Go tests if module not yet initialized
+if [ -f backend/go.mod ]; then
+  cd backend && go test ./...
+  if [ $? -ne 0 ]; then echo "❌ Backend tests failed."; exit 1; fi
+  cd ..
+fi
+
+# Skip frontend tests if not yet initialized
+if [ -f frontend/package.json ]; then
+  cd frontend && npm run test -- --run
+  if [ $? -ne 0 ]; then echo "❌ Frontend tests failed."; exit 1; fi
+  cd ..
+fi
+
+LARGE=$(git diff --cached --name-only | xargs wc -l 2>/dev/null | awk '$1 > 300 {print $2}')
+if [ -n "$LARGE" ]; then echo "❌ Files exceed 300 lines: $LARGE"; exit 1; fi
+
+echo "✅ All checks passed."
