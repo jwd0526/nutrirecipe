@@ -2,8 +2,8 @@
 
 ## Current State
 - [x] Repo init + git hooks
-- [ ] DB + migrations
-- [ ] Go module + models
+- [x] DB + migrations
+- [x] Go module + models
 - [ ] Config
 - [ ] DB connection
 - [ ] USDA service
