@@ -32,7 +32,7 @@ export function ReviewTable({ ingredients, onChange, onSave, saving = false }: P
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <thead>
           <tr style={{ borderBottom: '2px solid #ddd' }}>
-            {['Ingredient', 'Status', 'g', 'kcal/100g', 'prot', 'carbs', 'fat'].map(h => (
+            {['Ingredient', 'Status', 'g', 'kcal', 'prot (g)', 'carbs (g)', 'fat (g)'].map(h => (
               <th key={h} style={{ textAlign: 'left', padding: '0.5rem' }}>{h}</th>
             ))}
           </tr>
@@ -66,6 +66,11 @@ interface RowProps {
   onPatch: (p: Partial<ValidatedIngredient>) => void
 }
 
+const total = (per100g: number | null | undefined, g: number) => {
+  if (per100g == null || !g) return '—'
+  return (per100g * g / 100).toFixed(1)
+}
+
 function IngredientRow({ ing, expanded, onToggle, onPatch }: RowProps) {
   const badge = BADGE[ing.match_status] ?? { label: ing.match_status, color: '#888' }
 
@@ -81,10 +86,10 @@ function IngredientRow({ ing, expanded, onToggle, onPatch }: RowProps) {
           <span style={{ color: badge.color, fontWeight: 600, fontSize: '0.8rem' }}>{badge.label}</span>
         </td>
         <td style={{ padding: '0.5rem' }}>{ing.quantity_g}</td>
-        <td style={{ padding: '0.5rem' }}>{ing.calories_per_100g ?? '—'}</td>
-        <td style={{ padding: '0.5rem' }}>{ing.protein_per_100g ?? '—'}</td>
-        <td style={{ padding: '0.5rem' }}>{ing.carbs_per_100g ?? '—'}</td>
-        <td style={{ padding: '0.5rem' }}>{ing.fat_per_100g ?? '—'}</td>
+        <td style={{ padding: '0.5rem' }}>{total(ing.calories_per_100g, ing.quantity_g)}</td>
+        <td style={{ padding: '0.5rem' }}>{total(ing.protein_per_100g, ing.quantity_g)}</td>
+        <td style={{ padding: '0.5rem' }}>{total(ing.carbs_per_100g, ing.quantity_g)}</td>
+        <td style={{ padding: '0.5rem' }}>{total(ing.fat_per_100g, ing.quantity_g)}</td>
       </tr>
 
       {expanded && (

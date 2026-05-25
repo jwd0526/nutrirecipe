@@ -57,7 +57,10 @@ If any ingredient type is ambiguous (e.g. "oil", "flour", or "syrup" with no qua
   ]
 }
 
-Gram conversion reference: 1 cup liquid=240g, 1 cup flour=120g, 1 cup cooked rice=195g, 1 cup cooked chicken=140g, 1 tbsp=15g, 1 tsp=5g, 1 oz=28g.
+Gram conversion reference:
+- Volumes: 1 cup liquid=240g, 1 cup flour=120g, 1 cup cooked rice=195g, 1 cup cooked chicken=140g, 1 tbsp=14g, 1 tsp=5g, 1 oz=28g, 1 lb=454g
+- Whole items: 1 large egg=50g, 1 medium egg=44g, 1 medium carrot=61g, 1 large carrot=72g, 1 medium onion=110g, 1 large onion=150g, 1 medium potato=150g, 1 clove garlic=3g, 1 medium tomato=123g, 1 medium apple=182g, 1 medium banana=118g
+- Always provide a non-zero quantity_g. If size is unspecified assume medium.
 The "primary" search query must be a plain ingredient name suitable for the USDA food database (no quantities or units).
 Output nothing outside the JSON.`
 
