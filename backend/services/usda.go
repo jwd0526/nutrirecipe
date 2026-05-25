@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"strings"
 
 	pgkitx "github.com/jwd0526/pgkitx"
 
@@ -76,7 +75,7 @@ func (s *USDAService) Validate(ctx context.Context, ingredient models.ParsedIngr
 		result.CarbsPer100g = best.Carbs
 		result.FatPer100g = best.Fat
 		result.Options = options
-		result.MatchStatus = s.matchStatus(ingredient.SearchQueries.Primary, best.Name)
+		result.MatchStatus = evalMatch(ingredient.SearchQueries.Primary, best.Name)
 		s.cacheResult(ctx, best)
 		return result
 	}
@@ -120,7 +119,7 @@ func (s *USDAService) lookupCache(ctx context.Context, query string, out *models
 	out.ProteinPer100g = prot
 	out.CarbsPer100g = carb
 	out.FatPer100g = fat
-	out.MatchStatus = s.matchStatus(query, name)
+	out.MatchStatus = evalMatch(query, name)
 	return true
 }
 
@@ -177,21 +176,3 @@ func (s *USDAService) cacheResult(ctx context.Context, opt models.USDAOption) {
 		opt.FdcID, opt.Name, opt.Calories, opt.Protein, opt.Carbs, opt.Fat)
 }
 
-func (s *USDAService) matchStatus(query, result string) string {
-	queryWords := strings.Fields(strings.ToLower(query))
-	resultWords := strings.Fields(strings.ToLower(result))
-
-	shared := 0
-	for _, qw := range queryWords {
-		for _, rw := range resultWords {
-			if qw == rw {
-				shared++
-				break
-			}
-		}
-	}
-	if shared < 2 {
-		return "low_confidence"
-	}
-	return "matched"
-}

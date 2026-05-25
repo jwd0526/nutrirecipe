@@ -5,46 +5,6 @@ import (
 	"testing"
 )
 
-func TestMatchStatus_Matched(t *testing.T) {
-	s := &USDAService{}
-	status := s.matchStatus("chicken breast raw", "chicken breast skinless raw")
-	if status != "matched" {
-		t.Errorf("expected matched, got %s", status)
-	}
-}
-
-func TestMatchStatus_LowConfidence(t *testing.T) {
-	s := &USDAService{}
-	status := s.matchStatus("chicken breast", "beef sirloin cooked")
-	if status != "low_confidence" {
-		t.Errorf("expected low_confidence, got %s", status)
-	}
-}
-
-func TestMatchStatus_EmptyQuery(t *testing.T) {
-	s := &USDAService{}
-	status := s.matchStatus("", "chicken breast")
-	if status != "low_confidence" {
-		t.Errorf("expected low_confidence for empty query, got %s", status)
-	}
-}
-
-func TestMatchStatus_EmptyResult(t *testing.T) {
-	s := &USDAService{}
-	status := s.matchStatus("chicken breast", "")
-	if status != "low_confidence" {
-		t.Errorf("expected low_confidence for empty result, got %s", status)
-	}
-}
-
-func TestMatchStatus_ExactMatch(t *testing.T) {
-	s := &USDAService{}
-	status := s.matchStatus("whole milk", "whole milk")
-	if status != "matched" {
-		t.Errorf("expected matched for identical strings, got %s", status)
-	}
-}
-
 func TestUSDASearchURL_Format(t *testing.T) {
 	if !strings.HasPrefix(usdaSearchURL, "https://") {
 		t.Error("usdaSearchURL must use HTTPS")
@@ -67,9 +27,7 @@ func TestNutrientNumbers(t *testing.T) {
 		},
 	}
 
-	s := &USDAService{}
-	// simulate the extraction logic used in searchUSDA
-	opt := extractOption(s, food)
+	opt := extractOption(nil, food)
 
 	if opt.Calories != 100 {
 		t.Errorf("expected calories 100, got %f", opt.Calories)
@@ -87,8 +45,7 @@ func TestNutrientNumbers(t *testing.T) {
 
 func TestNutrientNumbers_NoNutrients(t *testing.T) {
 	food := usdaFood{FdcID: 1, Description: "empty food"}
-	s := &USDAService{}
-	opt := extractOption(s, food)
+	opt := extractOption(nil, food)
 	if opt.Calories != 0 || opt.Protein != 0 || opt.Fat != 0 || opt.Carbs != 0 {
 		t.Error("expected all zeros for food with no nutrients")
 	}
