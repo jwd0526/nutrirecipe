@@ -11,6 +11,8 @@ type Config struct {
 	DatabaseURL string
 	USDAAPIKey  string
 	Port        string
+	OllamaURL   string
+	OllamaModel string
 }
 
 func Load() *Config {
@@ -22,6 +24,8 @@ func Load() *Config {
 		DatabaseURL: require("DATABASE_URL"),
 		USDAAPIKey:  require("USDA_API_KEY"),
 		Port:        getOrDefault("PORT", "8080"),
+		OllamaURL:   getOrDefault("OLLAMA_URL", "http://127.0.0.1:11434"),
+		OllamaModel: getOrDefault("OLLAMA_MODEL", "qwen2.5-coder:7b"),
 	}
 }
 

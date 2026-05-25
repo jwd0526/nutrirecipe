@@ -5,14 +5,17 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jwd0526/nutrirecipe/models"
-	"github.com/jwd0526/nutrirecipe/services"
 )
 
-type AgentHandler struct {
-	svc *services.AgentService
+type agentParser interface {
+	Parse(req models.AgentParseRequest) (models.AgentParseResponse, error)
 }
 
-func NewAgentHandler(svc *services.AgentService) *AgentHandler {
+type AgentHandler struct {
+	svc agentParser
+}
+
+func NewAgentHandler(svc agentParser) *AgentHandler {
 	return &AgentHandler{svc: svc}
 }
 
@@ -22,5 +25,10 @@ func (h *AgentHandler) Parse(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, h.svc.Parse(req))
+	resp, err := h.svc.Parse(req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "agent failed"})
+		return
+	}
+	c.JSON(http.StatusOK, resp)
 }

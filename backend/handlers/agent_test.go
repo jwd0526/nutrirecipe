@@ -5,18 +5,46 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jwd0526/nutrirecipe/models"
-	"github.com/jwd0526/nutrirecipe/services"
 )
+
+type mockAgentSvc struct{}
+
+func (m *mockAgentSvc) Parse(req models.AgentParseRequest) (models.AgentParseResponse, error) {
+	if req.Input == "" {
+		return models.AgentParseResponse{Status: "resolved", Ingredients: []models.ParsedIngredient{}}, nil
+	}
+	lower := strings.ToLower(req.Input)
+	if strings.Contains(lower, "syrup") && !strings.Contains(lower, "maple") &&
+		!strings.Contains(lower, "corn") && !strings.Contains(lower, "agave") {
+		return models.AgentParseResponse{
+			Status: "needs_clarification",
+			Questions: []models.ClarificationQ{{
+				ID: "q1", IngredientRaw: "syrup",
+				Question: "What type of syrup?",
+				Options:  []string{"maple syrup", "corn syrup", "agave syrup", "simple syrup"},
+			}},
+		}, nil
+	}
+	lines := strings.Split(strings.TrimSpace(req.Input), "\n")
+	ings := make([]models.ParsedIngredient, 0, len(lines))
+	for _, l := range lines {
+		if l = strings.TrimSpace(l); l != "" {
+			ings = append(ings, models.ParsedIngredient{Name: l, QuantityG: 100, Confidence: "high"})
+		}
+	}
+	return models.AgentParseResponse{Status: "resolved", Ingredients: ings}, nil
+}
 
 func init() { gin.SetMode(gin.TestMode) }
 
 func agentRouter() *gin.Engine {
 	r := gin.New()
-	h := NewAgentHandler(services.NewAgentService())
+	h := NewAgentHandler(&mockAgentSvc{})
 	r.POST("/api/agent/parse", h.Parse)
 	return r
 }

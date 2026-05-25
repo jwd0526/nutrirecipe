@@ -24,7 +24,7 @@ func main() {
 	}
 	defer pool.Close()
 
-	agentSvc := services.NewAgentService()
+	agentSvc := services.NewAgentService(cfg.OllamaURL, cfg.OllamaModel)
 	usdaSvc := services.NewUSDAService(pool, cfg.USDAAPIKey)
 
 	r := gin.Default()
